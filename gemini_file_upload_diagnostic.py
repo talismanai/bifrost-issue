@@ -159,11 +159,10 @@ def _load_env_file(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
 
-def _optional_env(*names: str) -> str | None:
-    for name in names:
-        value = os.getenv(name)
-        if value and value.strip():
-            return value.strip()
+def _optional_env(name: str) -> str | None:
+    value = os.getenv(name)
+    if value and value.strip():
+        return value.strip()
     return None
 
 
@@ -175,7 +174,7 @@ def _required_bifrost_api_key(runtime: RuntimeConfig) -> str:
 
 def _required_bifrost_base_url(runtime: RuntimeConfig) -> str:
     if not runtime.bifrost_base_url:
-        raise RuntimeError("BIFROST_BASE_URL or BIFROST_GEMINI_FILE_BASE_URL is required")
+        raise RuntimeError("BIFROST_GEMINI_FILE_BASE_URL is required")
     return runtime.bifrost_base_url
 
 
@@ -184,14 +183,14 @@ def _missing_env_vars(runtime: RuntimeConfig, scenarios: list[Scenario]) -> list
     missing: list[str] = []
 
     if "direct-gemini" in names and not runtime.google_api_key:
-        missing.append("GEMINI_API_KEY or GOOGLE_API_KEY or BIFROST_DIRECT_GEMINI_API_KEY")
+        missing.append("GEMINI_API_KEY")
 
     bifrost_scenarios = {"bifrost-api-key", "bifrost-session-x-bf-vk"}
     if names & bifrost_scenarios:
         if not runtime.bifrost_api_key:
             missing.append("BIFROST_API_KEY")
         if not runtime.bifrost_base_url:
-            missing.append("BIFROST_GEMINI_FILE_BASE_URL or BIFROST_BASE_URL")
+            missing.append("BIFROST_GEMINI_FILE_BASE_URL")
 
     return missing
 
@@ -295,9 +294,7 @@ async def _upload_with_client(client: Client, runtime: RuntimeConfig) -> None:
 
 async def _direct_gemini(runtime: RuntimeConfig, operation_id: str) -> None:
     if not runtime.google_api_key:
-        raise RuntimeError(
-            "GEMINI_API_KEY, GOOGLE_API_KEY, or BIFROST_DIRECT_GEMINI_API_KEY is required"
-        )
+        raise RuntimeError("GEMINI_API_KEY is required")
 
     client = Client(
         api_key=runtime.google_api_key,
@@ -471,7 +468,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--base-url",
         default=None,
-        help="Override Gemini file base URL. Defaults to BIFROST_GEMINI_FILE_BASE_URL or BIFROST_BASE_URL/genai.",
+        help="Override Gemini file base URL. Defaults to BIFROST_GEMINI_FILE_BASE_URL.",
     )
     parser.add_argument(
         "--file",
@@ -506,21 +503,12 @@ async def _main() -> None:
     LOG_FORMAT = args.log_format
     _load_env_file(Path(args.env_file))
 
-    bifrost_root = _optional_env("BIFROST_BASE_URL")
-    bifrost_base_url = (
-        args.base_url
-        or os.getenv("BIFROST_GEMINI_FILE_BASE_URL")
-        or (f"{bifrost_root.rstrip('/')}/genai" if bifrost_root else None)
-    )
+    bifrost_base_url = args.base_url or _optional_env("BIFROST_GEMINI_FILE_BASE_URL")
     runtime = RuntimeConfig(
         text_file=args.file,
         bifrost_api_key=_optional_env("BIFROST_API_KEY"),
         bifrost_base_url=bifrost_base_url,
-        google_api_key=_optional_env(
-            "GEMINI_API_KEY",
-            "GOOGLE_API_KEY",
-            "BIFROST_DIRECT_GEMINI_API_KEY",
-        ),
+        google_api_key=_optional_env("GEMINI_API_KEY"),
     )
 
     if args.scenario == "all":

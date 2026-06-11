@@ -15,16 +15,12 @@ For direct Google:
 
 ```bash
 export GEMINI_API_KEY=...
-# or GOOGLE_API_KEY=...
-# or BIFROST_DIRECT_GEMINI_API_KEY=...
 ```
 
 For Bifrost:
 
 ```bash
-export BIFROST_BASE_URL=https://...
 export BIFROST_API_KEY=...
-# Optional:
 export BIFROST_GEMINI_FILE_BASE_URL=https://.../genai
 ```
 
