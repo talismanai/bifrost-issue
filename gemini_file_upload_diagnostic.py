@@ -166,6 +166,14 @@ def _optional_env(name: str) -> str | None:
     return None
 
 
+def _with_genai_prefix(base_url: str) -> str:
+    stripped = base_url.rstrip("/")
+    path = urlsplit(stripped).path.rstrip("/")
+    if path.endswith("/genai"):
+        return stripped
+    return f"{stripped}/genai"
+
+
 def _required_bifrost_api_key(runtime: RuntimeConfig) -> str:
     if not runtime.bifrost_api_key:
         raise RuntimeError("BIFROST_API_KEY is required")
@@ -468,7 +476,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--base-url",
         default=None,
-        help="Override Gemini file base URL. Defaults to BIFROST_BASE_URL.",
+        help="Override Bifrost base URL. Defaults to BIFROST_BASE_URL; /genai is appended when missing.",
     )
     parser.add_argument(
         "--file",
@@ -503,7 +511,8 @@ async def _main() -> None:
     LOG_FORMAT = args.log_format
     _load_env_file(Path(args.env_file))
 
-    bifrost_base_url = args.base_url or _optional_env("BIFROST_BASE_URL")
+    raw_bifrost_base_url = args.base_url or _optional_env("BIFROST_BASE_URL")
+    bifrost_base_url = _with_genai_prefix(raw_bifrost_base_url) if raw_bifrost_base_url else None
     runtime = RuntimeConfig(
         text_file=args.file,
         bifrost_api_key=_optional_env("BIFROST_API_KEY"),

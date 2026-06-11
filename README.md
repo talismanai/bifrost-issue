@@ -21,8 +21,10 @@ For Bifrost:
 
 ```bash
 export BIFROST_API_KEY=...
-export BIFROST_BASE_URL=https://.../genai
+export BIFROST_BASE_URL=https://...
 ```
+
+The script appends `/genai` to `BIFROST_BASE_URL` when it is missing.
 
 ## Run
 
@@ -110,10 +112,14 @@ import os
 
 from google import genai
 
+bifrost_base_url = os.environ["BIFROST_BASE_URL"].rstrip("/")
+if not bifrost_base_url.endswith("/genai"):
+    bifrost_base_url = f"{bifrost_base_url}/genai"
+
 client = genai.Client(
     api_key=os.environ["BIFROST_API_KEY"],
     http_options={
-        "base_url": os.environ["BIFROST_BASE_URL"],
+        "base_url": bifrost_base_url,
         "headers": {"X-Operation-ID": operation_id},
     },
 )
@@ -129,10 +135,14 @@ import os
 
 from google import genai
 
+bifrost_base_url = os.environ["BIFROST_BASE_URL"].rstrip("/")
+if not bifrost_base_url.endswith("/genai"):
+    bifrost_base_url = f"{bifrost_base_url}/genai"
+
 client = genai.Client(
     api_key="dummy-key",
     http_options={
-        "base_url": os.environ["BIFROST_BASE_URL"],
+        "base_url": bifrost_base_url,
         "headers": {"X-Operation-ID": operation_id},
     },
 )
