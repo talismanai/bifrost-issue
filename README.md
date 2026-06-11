@@ -21,7 +21,7 @@ For Bifrost:
 
 ```bash
 export BIFROST_API_KEY=...
-export BIFROST_GEMINI_FILE_BASE_URL=https://.../genai
+export BIFROST_BASE_URL=https://.../genai
 ```
 
 ## Run
@@ -113,7 +113,7 @@ from google import genai
 client = genai.Client(
     api_key=os.environ["BIFROST_API_KEY"],
     http_options={
-        "base_url": os.environ["BIFROST_GEMINI_FILE_BASE_URL"],
+        "base_url": os.environ["BIFROST_BASE_URL"],
         "headers": {"X-Operation-ID": operation_id},
     },
 )
@@ -132,7 +132,7 @@ from google import genai
 client = genai.Client(
     api_key="dummy-key",
     http_options={
-        "base_url": os.environ["BIFROST_GEMINI_FILE_BASE_URL"],
+        "base_url": os.environ["BIFROST_BASE_URL"],
         "headers": {"X-Operation-ID": operation_id},
     },
 )
