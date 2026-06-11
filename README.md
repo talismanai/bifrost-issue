@@ -59,6 +59,15 @@ Repeat the Bifrost session-header scenario:
 uv run gemini_file_upload_diagnostic.py --scenario bifrost-session-x-bf-vk --repeat 10
 ```
 
+Add a delay before the resumable upload continuation request:
+
+```bash
+uv run gemini_file_upload_diagnostic.py \
+  --scenario bifrost-session-x-bf-vk \
+  --repeat 10 \
+  --upload-delay-seconds 1
+```
+
 Rich terminal output is the default. Raw event output:
 
 ```bash

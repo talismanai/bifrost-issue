@@ -48,6 +48,7 @@ class RuntimeConfig:
     bifrost_api_key: str | None = None
     bifrost_base_url: str | None = None
     google_api_key: str | None = None
+    upload_delay_seconds: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,11 @@ def _emit(event: dict[str, Any]) -> None:
             query = "?" if event.get("has_query") else ""
             status = int(event["status"])
             status_style = (
-                "green" if 200 <= status < 300 else "yellow" if 300 <= status < 500 else "red"
+                "green"
+                if 200 <= status < 300
+                else "yellow"
+                if 300 <= status < 500
+                else "red"
             )
             console.print(
                 "  [bold magenta]<-[/bold magenta] "
@@ -103,6 +108,12 @@ def _emit(event: dict[str, Any]) -> None:
                 f"[magenta]{event['method']}[/magenta] "
                 f"[dim]{event['path']}{query}[/dim] "
                 f"[dim]headers={event['headers']}[/dim]"
+            )
+        case "upload_delay":
+            console.print(
+                "  [bold yellow]~[/bold yellow] "
+                f"delaying resumable upload continuation for "
+                f"[yellow]{event['seconds']}s[/yellow]"
             )
         case "uploaded":
             console.print(
@@ -113,12 +124,20 @@ def _emit(event: dict[str, Any]) -> None:
             console.print("  [green]deleted[/green] uploaded file")
         case "scenario_result":
             if event["status"] == "passed":
-                console.print(f"  result: [bold green]PASSED[/bold green] {event['scenario']}")
+                console.print(
+                    f"  result: [bold green]PASSED[/bold green] {event['scenario']}"
+                )
             else:
-                console.print(f"  result: [bold red]FAILED[/bold red] {event['scenario']}")
-                console.print(f"  [red]error[/red]: {event['error_type']}: {event['error']}")
+                console.print(
+                    f"  result: [bold red]FAILED[/bold red] {event['scenario']}"
+                )
+                console.print(
+                    f"  [red]error[/red]: {event['error_type']}: {event['error']}"
+                )
         case "iteration_start":
-            console.rule(f"Iteration {event['iteration']}/{event['repeat']}", style="bold blue")
+            console.rule(
+                f"Iteration {event['iteration']}/{event['repeat']}", style="bold blue"
+            )
         case "summary":
             failed = int(event["failed"])
             style = "green" if failed == 0 else "red"
@@ -140,9 +159,13 @@ def _emit(event: dict[str, Any]) -> None:
                 f"iteration {event['iteration']}: [cyan]{event['scenario']}[/cyan]"
             )
             console.print(f"  [dim]description:[/dim] {event['description']}")
-            console.print(f"  [dim]operation_id:[/dim] [yellow]{event['operation_id']}[/yellow]")
+            console.print(
+                f"  [dim]operation_id:[/dim] [yellow]{event['operation_id']}[/yellow]"
+            )
             if event.get("error_type"):
-                console.print(f"  [red]error:[/red] {event['error_type']}: {event['error']}")
+                console.print(
+                    f"  [red]error:[/red] {event['error_type']}: {event['error']}"
+                )
         case _:
             console.print(event)
 
@@ -226,10 +249,14 @@ def _interesting_response_headers(headers: Any) -> dict[str, str]:
     }
 
 
-def _install_aiohttp_trace(scenario_name: str) -> Callable[[], None]:
+def _install_aiohttp_trace(
+    scenario_name: str, upload_delay_seconds: float
+) -> Callable[[], None]:
     original_request = aiohttp.ClientSession._request
 
-    async def traced_request(self: aiohttp.ClientSession, method: str, url: str, **kwargs: Any):
+    async def traced_request(
+        self: aiohttp.ClientSession, method: str, url: str, **kwargs: Any
+    ):
         parsed = urlsplit(str(url))
         effective_headers = dict(getattr(self, "headers", {}) or {})
         effective_headers.update(dict(kwargs.get("headers") or {}))
@@ -245,6 +272,16 @@ def _install_aiohttp_trace(scenario_name: str) -> Callable[[], None]:
                 "effective_headers": _header_names(effective_headers),
             }
         )
+        if upload_delay_seconds > 0 and "upload_id=" in parsed.query:
+            _emit(
+                {
+                    "scenario": scenario_name,
+                    "event": "upload_delay",
+                    "seconds": upload_delay_seconds,
+                    "path": parsed.path,
+                }
+            )
+            await asyncio.sleep(upload_delay_seconds)
 
         response = await original_request(self, method, url, **kwargs)
         _emit(
@@ -278,7 +315,13 @@ async def _upload_with_client(client: Client, runtime: RuntimeConfig) -> None:
             file=str(runtime.text_file),
             config={"mime_type": "text/plain"},
         )
-        _emit({"event": "uploaded", "name": uploaded.name, "size_bytes": uploaded.size_bytes})
+        _emit(
+            {
+                "event": "uploaded",
+                "name": uploaded.name,
+                "size_bytes": uploaded.size_bytes,
+            }
+        )
         if uploaded.name:
             deleted = await client.aio.files.delete(name=uploaded.name)
             _emit({"event": "deleted", "result": str(deleted)})
@@ -292,7 +335,13 @@ async def _upload_with_client(client: Client, runtime: RuntimeConfig) -> None:
             file=str(file_path),
             config={"mime_type": "text/plain"},
         )
-        _emit({"event": "uploaded", "name": uploaded.name, "size_bytes": uploaded.size_bytes})
+        _emit(
+            {
+                "event": "uploaded",
+                "name": uploaded.name,
+                "size_bytes": uploaded.size_bytes,
+            }
+        )
         if uploaded.name:
             deleted = await client.aio.files.delete(name=uploaded.name)
             _emit({"event": "deleted", "result": str(deleted)})
@@ -332,7 +381,10 @@ async def _bifrost_session_x_bf_vk(runtime: RuntimeConfig, operation_id: str) ->
     )
     session = await client._api_client._get_aiohttp_session()
     session.headers.update(
-        {"x-bf-vk": _required_bifrost_api_key(runtime), **_operation_headers(operation_id)}
+        {
+            "x-bf-vk": _required_bifrost_api_key(runtime),
+            **_operation_headers(operation_id),
+        }
     )
     await _upload_with_client(client, runtime)
 
@@ -371,10 +423,12 @@ async def _run_scenario(
             "operation_id": operation_id,
         }
     )
-    restore_trace = _install_aiohttp_trace(scenario.name)
+    restore_trace = _install_aiohttp_trace(scenario.name, runtime.upload_delay_seconds)
     try:
         await scenario.run(runtime, operation_id)
-        _emit({"event": "scenario_result", "scenario": scenario.name, "status": "passed"})
+        _emit(
+            {"event": "scenario_result", "scenario": scenario.name, "status": "passed"}
+        )
         return ScenarioResult(
             iteration=iteration,
             scenario=scenario.name,
@@ -434,7 +488,9 @@ def _print_summary(results: list[ScenarioResult]) -> None:
         for result in results:
             status_style = "green" if result.status == "passed" else "red"
             error = (
-                f"{result.error_type}: {result.error}" if result.error_type and result.error else ""
+                f"{result.error_type}: {result.error}"
+                if result.error_type and result.error
+                else ""
             )
             table.add_row(
                 str(result.iteration),
@@ -497,6 +553,12 @@ def _parse_args() -> argparse.Namespace:
         help="Number of times to run the selected scenario set.",
     )
     parser.add_argument(
+        "--upload-delay-seconds",
+        type=float,
+        default=0.0,
+        help="Sleep before the resumable upload continuation request. Useful for testing Bifrost cross-pod KV propagation.",
+    )
+    parser.add_argument(
         "--log-format",
         choices=["rich", "events"],
         default="rich",
@@ -510,14 +572,19 @@ async def _main() -> None:
     args = _parse_args()
     LOG_FORMAT = args.log_format
     _load_env_file(Path(args.env_file))
+    if args.upload_delay_seconds < 0:
+        raise RuntimeError("--upload-delay-seconds must be non-negative")
 
     raw_bifrost_base_url = args.base_url or _optional_env("BIFROST_BASE_URL")
-    bifrost_base_url = _with_genai_prefix(raw_bifrost_base_url) if raw_bifrost_base_url else None
+    bifrost_base_url = (
+        _with_genai_prefix(raw_bifrost_base_url) if raw_bifrost_base_url else None
+    )
     runtime = RuntimeConfig(
         text_file=args.file,
         bifrost_api_key=_optional_env("BIFROST_API_KEY"),
         bifrost_base_url=bifrost_base_url,
         google_api_key=_optional_env("GEMINI_API_KEY"),
+        upload_delay_seconds=args.upload_delay_seconds,
     )
 
     if args.scenario == "all":
@@ -527,12 +594,20 @@ async def _main() -> None:
 
     missing = _missing_env_vars(runtime, scenarios)
     if missing:
-        raise RuntimeError("Missing required environment variables: " + ", ".join(missing))
+        raise RuntimeError(
+            "Missing required environment variables: " + ", ".join(missing)
+        )
 
     results: list[ScenarioResult] = []
     for iteration in range(1, args.repeat + 1):
         if args.repeat > 1:
-            _emit({"event": "iteration_start", "iteration": iteration, "repeat": args.repeat})
+            _emit(
+                {
+                    "event": "iteration_start",
+                    "iteration": iteration,
+                    "repeat": args.repeat,
+                }
+            )
         for scenario in scenarios:
             results.append(await _run_scenario(scenario, runtime, iteration=iteration))
 
