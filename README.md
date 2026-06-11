@@ -72,3 +72,80 @@ Use a custom file:
 ```bash
 uv run gemini_file_upload_diagnostic.py --scenario all --file /path/to/file.txt
 ```
+
+## Scenario call shapes
+
+All scenarios run the same file lifecycle after creating the client:
+
+```python
+uploaded = await client.aio.files.upload(
+    file="/path/to/file.txt",
+    config={"mime_type": "text/plain"},
+)
+
+if uploaded.name:
+    await client.aio.files.delete(name=uploaded.name)
+```
+
+### `direct-gemini`
+
+Calls Google Gemini directly. There is no Bifrost `base_url`.
+
+```python
+import os
+
+from google import genai
+
+client = genai.Client(
+    api_key=os.environ["GEMINI_API_KEY"],
+    http_options={
+        "headers": {"X-Operation-ID": operation_id},
+    },
+)
+```
+
+### `bifrost-api-key`
+
+Calls Bifrost's Gemini-compatible endpoint and passes the Bifrost virtual key as the
+GenAI SDK `api_key`.
+
+```python
+import os
+
+from google import genai
+
+client = genai.Client(
+    api_key=os.environ["BIFROST_API_KEY"],
+    http_options={
+        "base_url": os.environ["BIFROST_GEMINI_FILE_BASE_URL"],
+        "headers": {"X-Operation-ID": operation_id},
+    },
+)
+```
+
+### `bifrost-session-x-bf-vk`
+
+Calls Bifrost's Gemini-compatible endpoint with a dummy GenAI SDK key, then installs
+the Bifrost virtual key on the SDK's underlying aiohttp session.
+
+```python
+import os
+
+from google import genai
+
+client = genai.Client(
+    api_key="dummy-key",
+    http_options={
+        "base_url": os.environ["BIFROST_GEMINI_FILE_BASE_URL"],
+        "headers": {"X-Operation-ID": operation_id},
+    },
+)
+
+session = await client._api_client._get_aiohttp_session()
+session.headers.update(
+    {
+        "x-bf-vk": os.environ["BIFROST_API_KEY"],
+        "X-Operation-ID": operation_id,
+    }
+)
+```
