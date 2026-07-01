@@ -68,4 +68,4 @@ Before the fix, the upload/retrieve metadata can show an empty or generic MIME t
 400 Request contains an invalid argument.
 ```
 
-After the fix, the metadata includes `mimeType=application/pdf`, and `generateContent` can read the PDF.
+After the fix, `generateContent` can read the uploaded PDF. Google may still return generic file metadata from the File API, but the request no longer fails with the invalid-argument error.

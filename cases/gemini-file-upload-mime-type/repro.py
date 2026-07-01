@@ -130,7 +130,7 @@ def generate_content(client: httpx.Client, file_uri: str) -> None:
                     ],
                 }
             ],
-            "generationConfig": {"temperature": 0, "maxOutputTokens": 16},
+            "generationConfig": {"temperature": 0, "maxOutputTokens": 256},
         },
     )
     print(f"generateContent status={response.status_code}")
