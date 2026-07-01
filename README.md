@@ -1,4 +1,4 @@
-# Bifrost Issue Reproductions
+# Bifrost Issues Reproductions
 
 Small, self-contained reproductions for Bifrost provider issues.
 
