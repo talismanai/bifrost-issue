@@ -37,8 +37,8 @@ uv run gemini-file-upload-diagnostic --scenario all
 From the repo root:
 
 ```bash
-cd cases/gemini-file-upload-diagnostic
-uv run gemini-file-upload-diagnostic --env-file ../../.env --scenario all
+cd cases/solved/gemini-file-upload-diagnostic
+uv run gemini-file-upload-diagnostic --env-file ../../../.env --scenario all
 ```
 
 Direct script mode:
