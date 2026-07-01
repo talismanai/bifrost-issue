@@ -62,7 +62,7 @@ MODEL="gemini-2.5-flash"
 
 ## Expected Result
 
-Before the fix, the upload/retrieve metadata can show an empty or generic MIME type, and `generateContent` can return:
+Before the fix, the upload/retrieve metadata shows an empty or generic MIME type, and `generateContent` returns:
 
 ```text
 400 Request contains an invalid argument.
