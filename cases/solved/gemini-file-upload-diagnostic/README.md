@@ -1,5 +1,12 @@
 # Gemini File Upload Diagnostic
 
+Status: solved.
+
+Resolution: Bifrost's `/genai` route can be used with the Google GenAI SDK by
+setting the SDK `base_url` to the Bifrost `/genai` endpoint and sending the
+Bifrost virtual key as the SDK `api_key`. The separate `x-bf-vk` session-header
+workaround is no longer needed for this case.
+
 Standalone diagnostic for comparing Gemini File API uploads:
 
 - Direct Google GenAI SDK

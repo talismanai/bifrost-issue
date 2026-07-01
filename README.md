@@ -9,7 +9,7 @@ Each case lives in its own folder with a local `pyproject.toml` and `uv.lock`.
 | Case | Description |
 | --- | --- |
 | [`gemini-file-upload-mime-type`](cases/gemini-file-upload-mime-type/) | Reproduces Gemini uploaded files losing MIME type metadata through Bifrost `/genai`. |
-| [`gemini-file-upload-diagnostic`](cases/solved/gemini-file-upload-diagnostic/) | Compares Gemini File API uploads directly against Google and through Bifrost `/genai`. |
+| [`gemini-file-upload-diagnostic`](cases/solved/gemini-file-upload-diagnostic/) | Solved diagnostic comparing Gemini File API uploads directly against Google and through Bifrost `/genai`. |
 | [`anthropic-file-id-openai-route`](cases/anthropic-file-id-openai-route/) | Reproduces Anthropic uploaded `file_id` failures through Bifrost OpenAI-compatible chat routes. |
 
 ## Usage
