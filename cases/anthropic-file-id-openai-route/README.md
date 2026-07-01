@@ -77,6 +77,69 @@ Optional:
 MODEL="anthropic/claude-sonnet-4-5-20250929"
 ```
 
+## Local Bifrost Config Used
+
+For local validation, Bifrost was run with an isolated app directory containing this `config.json`.
+The Anthropic key was passed through the environment; no secret value needs to be written to disk.
+
+```json
+{
+  "$schema": "https://www.getbifrost.ai/schema",
+  "config_store": {
+    "enabled": false
+  },
+  "logs_store": {
+    "enabled": false
+  },
+  "providers": {
+    "anthropic": {
+      "keys": [
+        {
+          "name": "anthropic-env-key",
+          "value": "env.ANTHROPIC_API_KEY",
+          "weight": 1,
+          "models": ["*"],
+          "use_for_batch_api": true
+        }
+      ],
+      "network_config": {
+        "default_request_timeout_in_seconds": 120,
+        "extra_headers": {
+          "anthropic-beta": "files-api-2025-04-14"
+        }
+      }
+    }
+  }
+}
+```
+
+The important settings are:
+
+- `use_for_batch_api: true`, otherwise `POST /v1/files?provider=anthropic` fails before the chat request.
+- `network_config.extra_headers.anthropic-beta: files-api-2025-04-14`, otherwise Anthropic rejects `source.type=file` because the Files API beta is not enabled for the chat request.
+- `MODEL=anthropic/claude-sonnet-4-5-20250929`; this was the model that succeeded in local validation.
+
+Example local run:
+
+```sh
+export ANTHROPIC_API_KEY="..."
+
+mkdir -p /tmp/bifrost-anthropic-fileid
+$BIFROST_HTTP_BIN \
+  -app-dir /tmp/bifrost-anthropic-fileid \
+  -host 127.0.0.1 \
+  -port 18082 \
+  -log-level warn
+```
+
+Then, from this case folder:
+
+```sh
+BIFROST_URL=http://127.0.0.1:18082 \
+MODEL=anthropic/claude-sonnet-4-5-20250929 \
+uv run python repro.py
+```
+
 ## Expected Result
 
 Before the fix, the chat call returns a 400 from Anthropic with an error like:
@@ -86,3 +149,8 @@ document.source: Input tag '' found using 'type'
 ```
 
 After the fix, the request reaches Anthropic with `source.type=file`.
+
+Observed locally:
+
+- Unfixed Bifrost returned `Input tag '' found using 'type'`.
+- Fixed Bifrost returned `200` and Claude read the tiny PDF content.
